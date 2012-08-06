@@ -1,7 +1,7 @@
 # FTPManager
 ***An Objective-C class for simple, synchronous ftp access.***
 
-The methods in this class hold the thread - so you may want to call them in a background thread. The class was originally intended to upload a fixed list of files in one of my apps, but when I encountered that there was no good FTP access class that can be used in Mac and iOS apps except for the sample by Apple, I decided to pubicize the class in the hope that it would be helpful for other developers.
+The methods in this class hold the thread - so you may want to call them in a background thread. The class was originally intended to upload a fixed list of files in one of my apps, but when I encountered that there was no good FTP access class that can be used in Mac and iOS apps except for the sample by Apple, I decided to publicize the class in the hope that it would be helpful for other developers.
 
 ### Information
 Copy FTPManager.h and FTPManager.m into your project to use it in your own app. To make this class work, you have to link to **CoreServices.framework** (Mac) or **CFNetwork.framework** (iOS).
