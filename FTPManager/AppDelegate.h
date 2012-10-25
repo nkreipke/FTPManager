@@ -10,7 +10,7 @@
 #import "FTPManager.h"
 
 enum actions {
-    upload, download, list, newfolder, nothing
+    upload, download, list, newfolder, del, chmod, nothing
     };
 
 @interface AppDelegate : NSObject <NSApplicationDelegate> {
@@ -69,4 +69,9 @@ enum actions {
 @property (weak) IBOutlet NSTextField *downloadFileField;
 @property (unsafe_unretained) IBOutlet NSPanel *directoryPanel;
 @property (weak) IBOutlet NSTextField *createDirectoryField;
+@property (unsafe_unretained) IBOutlet NSPanel *deletePanel;
+@property (weak) IBOutlet NSTextField *deleteFileField;
+@property (unsafe_unretained) IBOutlet NSPanel *chmodPanel;
+@property (weak) IBOutlet NSTextField *chmodFileField;
+@property (weak) IBOutlet NSTextField *chmodModeField;
 @end

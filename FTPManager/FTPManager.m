@@ -1,14 +1,14 @@
 //
 //  FTPManager.m
-//  FTPTest
+//  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
-//  Copyright 2012 nkreipke. All rights reserved.
-//  http://nkreipke.wordpress.com
+//  Copyright (c) 2012 nkreipke. All rights reserved.
+//  http://nkreipke.de
 //
 
-//  Version 1.2
-//  http://creativecommons.org/licenses/by/3.0/
+//  Version 1.5
+//  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
 // Parts of this class are based on the SimpleFTPSample sample code by Apple.
@@ -46,25 +46,38 @@
 //         - deleteFile:fromServer:
 //
 // ** 1.4.1 (2012-06-08) by nkreipke
-//     - replaced string keys with (id)kFMProcessInfo constants.
+//     - replaced string keys with kFMProcessInfo constants.
 //     - changed method declarations containing an info dictionary to name it processInfo.
 //     - fixed broken createNewFolder method in ARC version
-
-// +++++++++++++++++++++++++
-// !! ARC ENABLED VERSION !!
-// +++++++++++++++++++++++++
+//
+// ** 1.5 (2012-10-25) by nkreipke
+//     - FMServer:
+//         + anonymousServerWithDestination:(NSURL*)
+//     - added NSURL category FTPManagerNSURLAdditions
+//     - the destination URL does NOT need the "ftp://" prefix anymore
+//     - deleteFile:fromServer: is deprecated
+//     - Methods added:
+//         - deleteFileNamed:fromServer:
+//         - chmodFileNamed:to:atServer:
+//         - checkLogin:
+//     - cleaned up the code a little
+//
 
 #import "FTPManager.h"
 
 #define And(val1, val2) { val1 = val1 && val2; }
 #define Check(val1) { if (val1 == NO) return NO; }
 
+#pragma mark -
+
 @interface FTPManager ()
 
 @property (nonatomic, readonly) uint8_t *         buffer;
 @property (nonatomic, assign)   size_t            bufferOffset;
 @property (nonatomic, assign)   size_t            bufferLimit;
- 
+
+- (void) _streamDidEndWithSuccess:(BOOL)success failureReason:(FMStreamFailureReason)failureReason;
+-(BOOL) _ftpActionForServer:(FMServer*)server command:(NSString*)fullCommand;
 @end
 
 @implementation FTPManager
@@ -72,6 +85,8 @@
 @synthesize bufferOffset    = _bufferOffset;
 @synthesize bufferLimit     = _bufferLimit;
 @synthesize delegate        = _delegate;
+
+#pragma mark - Internal
 
 - (uint8_t *)buffer
 {
@@ -143,7 +158,7 @@
     fileSize = data.length;
     fileSizeProcessed = 0;
     
-    NSURL * finalURL = [server.destination URLByAppendingPathComponent:fileName];    
+    NSURL * finalURL = [server.destination.ftpURL URLByAppendingPathComponent:fileName];
     And(success, (finalURL != nil));
     Check(success);
     
@@ -185,7 +200,7 @@
     fileSize = [self fileSizeOf:fileURL];
     fileSizeProcessed = 0;
     
-    NSURL * finalURL = [server.destination URLByAppendingPathComponent:[fileURL lastPathComponent]];    
+    NSURL * finalURL = [server.destination.ftpURL URLByAppendingPathComponent:[fileURL lastPathComponent]];    
     And(success, (finalURL != nil));
     Check(success);
     
@@ -225,7 +240,7 @@
     
     fileSize = 0;
     
-    NSURL * finalURL = [server.destination URLByAppendingPathComponent:folderName isDirectory:YES];
+    NSURL * finalURL = [server.destination.ftpURL URLByAppendingPathComponent:folderName isDirectory:YES];
     And(success, (finalURL != nil));
     Check(success);
     
@@ -254,33 +269,6 @@
     return success;
 }
 
-- (BOOL) _deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server
-{
-    BOOL success = YES;
-    
-    action = _FMCurrentActionCreateNewFolder;
-    
-    fileSize = 0;
-    
-    if (![absolutePath hasSuffix:@"/"]) {
-        //if the path does not end with an '/' the method fails.
-        //no problem, we can fix this.
-        absolutePath = [NSString stringWithFormat:@"%@/",absolutePath];
-    }
-    
-    NSURL *fileURL = [[server destination] URLByAppendingPathComponent:absolutePath];
-    NSString *unProtocolledString = [[[fileURL absoluteString] componentsSeparatedByString:@"ftp://"] objectAtIndex:1];
-    NSString *authenticatedString = [NSString stringWithFormat:@"ftp://%@:%@@%@", server.username, server.password, unProtocolledString];
-    
-    And(success, (absolutePath != nil));
-    Check(success);
-    
-    And(success, CFURLDestroyResource((__bridge CFURLRef)[NSURL URLWithString:authenticatedString], NULL));
-    Check(success);
-    
-    return success;
-}
-
 - (NSArray*) _contentsOfServer:(FMServer*)server {
     BOOL success = YES;
     
@@ -290,13 +278,15 @@
     
     directoryListingData = [[NSMutableData alloc] init];
     
-    if (![server.destination.absoluteString hasSuffix:@"/"]) {
+    NSURL* dest = server.destination.ftpURL;
+    
+    if (![dest.absoluteString hasSuffix:@"/"]) {
         //if the url does not end with an '/' the method fails.
         //no problem, we can fix this.
-        server.destination = [NSURL URLWithString:[NSString stringWithFormat:@"%@/",server.destination.absoluteString]];
+        dest = [NSURL URLWithString:[NSString stringWithFormat:@"%@/",dest.absoluteString]];
     }
     
-    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)server.destination);
+    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)dest);
     And(success, (readStream != NULL));
     if (!success) return nil;
     serverReadStream = (__bridge NSInputStream*) readStream;
@@ -337,7 +327,7 @@
     Check(success);
     [fileWriter open];
     
-    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)[server.destination URLByAppendingPathComponent:fileName]);
+    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)[server.destination.ftpURL URLByAppendingPathComponent:fileName]);
     And(success, (readStream != NULL));
     Check(success);
     serverReadStream = (__bridge NSInputStream*) readStream;
@@ -362,6 +352,8 @@
     
     return success;
 }
+
+#pragma mark - Public Methods
 
 - (BOOL) uploadData:(NSData*)data withFileName:(NSString *)fileName toServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -398,15 +390,39 @@
     }
     return [self _createNewFolder:folderName atServer:server];
 }
-- (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server
-{
+- (BOOL) deleteFileNamed:(NSString*)fileName fromServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
         return NO;
     }
-    if (!absolutePath) {
+    if (!fileName) {
         return NO;
     }
-    return [self _deleteFile:absolutePath fromServer:server];
+    NSString* cmd;
+    if ([fileName rangeOfString:@"."].location != NSNotFound) {
+        //probably a file
+        cmd = @"DELE";
+    } else {
+        //probably a directory (this will only succeed if the dir is empty)
+        cmd = @"RMD";
+    }
+    return [self _ftpActionForServer:server command:[NSString stringWithFormat:@"%@ %@",cmd,fileName]];
+}
+- (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server {
+    //this is deprecated.
+    //the method may not behave like it used to.
+    return [self deleteFileNamed:absolutePath fromServer:server];
+}
+- (BOOL) chmodFileNamed:(NSString*)fileName to:(int)mode atServer:(FMServer*)server {
+    if (![self _checkFMServer:server]) {
+        return NO;
+    }
+    if (!fileName) {
+        return NO;
+    }
+    if (mode < 0 || mode > 777) {
+        return NO;
+    }
+    return [self _ftpActionForServer:server command:[NSString stringWithFormat:@"SITE CHMOD %i %@",mode,fileName]];
 }
 - (NSArray*) contentsOfServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -431,6 +447,12 @@
         return NO;
     }
     return [self _downloadFile:fileName toDirectory:directoryURL fromServer:server];
+}
+- (BOOL) checkLogin:(FMServer*)server {
+    if (![self _checkFMServer:server]) {
+        return NO;
+    }
+    return [self _ftpActionForServer:server command:nil];
 }
 - (NSMutableDictionary *) progress {
     //this does only work with uploadFile and downloadFile.
@@ -459,6 +481,33 @@
     
     return returnValues;
 }
+
+-(void)abort {
+    NSStream* currentStream;
+    switch (action) {
+        case _FMCurrentActionUploadFile:
+            currentStream = serverStream;
+            break;
+        case _FMCurrentActionDownloadFile:
+            currentStream = serverReadStream;
+            break;
+        case _FMCurrentActionCreateNewFolder:
+            currentStream = serverStream;
+            break;
+        case _FMCurrentActionContentsOfServer:
+            currentStream = serverReadStream;
+            break;
+        default:
+            break;
+    }
+    if (!currentStream) {
+        return;
+    }
+    [currentStream close];
+    [self _streamDidEndWithSuccess:YES failureReason:FMStreamFailureReasonAborted];
+}
+
+#pragma mark - Stream
 
 - (void) _streamDidEndWithSuccess:(BOOL)success failureReason:(FMStreamFailureReason)failureReason {
     action = _FMCurrentActionNone;
@@ -615,34 +664,138 @@
     }
 }
 
--(void)abort {
-    NSStream* currentStream;
-    switch (action) {
-        case _FMCurrentActionUploadFile:
-            currentStream = serverStream;
-            break;
-        case _FMCurrentActionDownloadFile:
-            currentStream = serverReadStream;
-            break;
-        case _FMCurrentActionCreateNewFolder:
-            currentStream = serverStream;
-            break;
-        case _FMCurrentActionContentsOfServer:
-            currentStream = serverReadStream;
-            break;
-        default:
-            break;
+#pragma mark - Sockets
+
+//These are some functions written in C. They use sockets to communicate with a FTP server.
+//We use this for deletion and chmod.
+
+-(NSString*) _listenLoopForSocket:(int)sockfd {
+    NSString* answer = @"";
+    char buffer[256];
+    ssize_t n;
+    while (n > 0) {
+        bzero(buffer, 256);
+        n = read(sockfd, buffer, 255);
+        if (n < 0) {
+            NSLog(@"Error reading from socket!");
+        } else {
+            NSString* b = [NSString stringWithCString:buffer encoding:NSUTF8StringEncoding];
+            answer = [NSString stringWithFormat:@"%@\n%@",answer,b];
+#ifdef FMSOCKET_VERBOSE
+            NSLog(@"%s",buffer);
+#endif
+        }
     }
-    if (!currentStream) {
-        return;
-    }
-    [currentStream close];
-    [self _streamDidEndWithSuccess:YES failureReason:FMStreamFailureReasonAborted];
+    return answer;
 }
 
+-(BOOL) _checkAnswers:(NSString*)a {
+    NSArray* answers = [a componentsSeparatedByString:@"\n"];
+    //we are interested in the first character in the answer.
+    //if this is a 4 or 5, the corresponding command failed.
+    for (NSString* answer in answers) {
+        const char*canswer = [answer cStringUsingEncoding:NSUTF8StringEncoding];
+        char first = *canswer;
+        if (first == '4' || first == '5') {
+            return NO;
+        }
+    }
+    return YES;
+}
+
+-(BOOL) _ftpActionForServer:(FMServer*)server command:(NSString*)fullCommand {
+    //We do this dirty: At first, we send all the commands, then we fetch the answers
+    //to find out whether we were successful.
+    
+    action = _FMCurrentActionSOCKET;
+    
+    const char *host = [[server.destination fmhost] cStringUsingEncoding:NSUTF8StringEncoding];
+    const char *user = [server.username cStringUsingEncoding:NSUTF8StringEncoding];
+    const char *pass = [server.password cStringUsingEncoding:NSUTF8StringEncoding];
+    NSString* wdirs = [server.destination fmdir];
+    const char *wdir;
+    BOOL chdir = NO;
+    if (wdirs && wdirs.length > 0) {
+        wdir = [wdirs cStringUsingEncoding:NSUTF8StringEncoding];
+        chdir = YES;
+    }
+    char cmd[256];
+    ssize_t n;
+    struct sockaddr_in serv_addr;
+    struct hostent *srv;
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        NSLog(@"could not open socket!");
+        return NO;
+    }
+    srv = gethostbyname(host);
+    if (srv == NULL) {
+        NSLog(@"host error!");
+        return NO;
+    }
+    bzero((char*)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char*)srv->h_addr,
+          (char*)&serv_addr.sin_addr.s_addr,
+          srv->h_length);
+    serv_addr.sin_port = htons(21);
+    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        NSLog(@"error connecting.");
+        return NO;
+    }
+    //it is very easy to connect to the control connection of an ftp server,
+    //as it is based on the Telnet protocol.
+    
+    //at this point, there is a connection.
+    //we now send login commands
+    sprintf(cmd, "USER %s\r\n", user);
+    n = write(sockfd, cmd, strlen(cmd));
+    if (n < 0) return NO;
+    bzero(cmd, 256);
+    sprintf(cmd, "PASS %s\r\n", pass);
+    n = write(sockfd, cmd, strlen(cmd));
+    if (n < 0) return NO;
+    //logged in!
+    if (fullCommand) {
+        if (chdir) {
+            //switch into the working directory:
+            bzero(cmd, 256);
+            sprintf(cmd, "CWD %s\r\n", wdir);
+            n = write(sockfd, cmd, strlen(cmd));
+            if (n < 0) return NO;
+        }
+#ifdef FMSOCKET_VERBOSE
+        //if verbose, print out location:
+        bzero(cmd, 256);
+        sprintf(cmd, "PWD\r\n");
+        n = write(sockfd, cmd, strlen(cmd));
+        if (n < 0) return NO;
+#endif
+        //now send the command:
+        bzero(cmd, 256);
+        sprintf(cmd, "%s\r\n", [fullCommand cStringUsingEncoding:NSUTF8StringEncoding]);
+        n = write(sockfd, cmd, strlen(cmd));
+        if (n < 0) return NO;
+    }
+    //and say goodbye:
+    bzero(cmd, 256);
+    sprintf(cmd, "QUIT\r\n");
+    n = write(sockfd, cmd, strlen(cmd));
+    if (n < 0) return NO;
+    // --------
+    //now, fetch the answers:
+    NSString* answer = [self _listenLoopForSocket:sockfd];
+    close(sockfd);
+    
+    streamSuccess = [self _checkAnswers:answer];
+    action = _FMCurrentActionNone;
+    
+    return streamSuccess;
+}
 
 @end
 
+#pragma mark -
 
 @implementation FMServer
 @synthesize password, username, destination;
@@ -652,5 +805,52 @@
     server.username = user;
     server.password = pass;
     return server;
+}
++ (FMServer*) anonymousServerWithDestination:(NSURL*)dest {
+    FMServer* server = [[FMServer alloc] init];
+    server.destination = dest;
+    server.username = FTPANONYMOUS;
+    server.password = @"";
+    return server;
+}
+@end
+
+@implementation NSURL (FTPManagerNSURLAdditions)
+-(NSString*)stringWithoutProtocol {
+    NSString* urlString = [self absoluteString];
+    NSRange range = [urlString rangeOfString:@"://"];
+    if (range.location != NSNotFound) {
+        urlString = [urlString substringFromIndex:range.location + 3];
+    }
+    return urlString;
+}
+-(NSURL*)ftpURL {
+    NSString* urlString = [self absoluteString];
+    if ([urlString hasPrefix:@"ftp://"]) {
+        return [NSURL URLWithString:urlString];
+    }
+    //return ftp:// version
+    return [NSURL URLWithString:[NSString stringWithFormat:@"ftp://%@",[self stringWithoutProtocol]]];
+}
+-(NSString*)fmhost {
+    //This replaces the [url host] method as it does not work if no
+    //protocol is specified.
+    NSString* u = [self stringWithoutProtocol];
+    NSRange fs = [u rangeOfString:@"/"];
+    if (fs.location != NSNotFound) {
+        return [u substringToIndex:fs.location];
+    } else {
+        return u;
+    }
+}
+-(NSString*)fmdir {
+    //returns the url without host and protocol
+    NSString* u = [self stringWithoutProtocol];
+    NSRange fs = [u rangeOfString:@"/"];
+    if (fs.location == NSNotFound) {
+        return nil;
+    } else {
+        return [u substringFromIndex:fs.location+1];
+    }
 }
 @end

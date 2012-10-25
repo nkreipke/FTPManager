@@ -57,8 +57,9 @@
     NSNumber* size = [dict objectForKey:(id)kCFFTPResourceSize];
     NSDate* mod = [dict objectForKey:(id)kCFFTPResourceModDate];
     NSNumber* type = [dict objectForKey:(id)kCFFTPResourceType];
+    NSNumber* mode = [dict objectForKey:(id)kCFFTPResourceMode];
     NSString* isFolder = ([type intValue] == 4) ? @"(folder) " : @"";
-    return [NSString stringWithFormat:@"%@ %@--- size %i bytes - mod: %@\n",name,isFolder,[size intValue],[mod description]];
+    return [NSString stringWithFormat:@"%@ %@--- size %i bytes - mode:%i - modDate: %@\n",name,isFolder,[size intValue],[mode intValue],[mod description]];
 }
 
 -(void)processSData:(NSArray*)data {
@@ -109,6 +110,12 @@
             break;
         case list:
             serverData = [ftpManager contentsOfServer:srv];
+            break;
+        case del:
+            success = [ftpManager deleteFileNamed:self.deleteFileField.stringValue fromServer:srv];
+            break;
+        case chmod:
+            success = [ftpManager chmodFileNamed:self.chmodFileField.stringValue to:self.chmodModeField.intValue atServer:srv];
             break;
         default:
             break;
@@ -183,6 +190,22 @@
     action = newfolder;
     [self runAction];
 }
+- (IBAction)pushDeleteAFile:(id)sender {
+    [NSApp beginSheet:self.deletePanel modalForWindow:self.window modalDelegate:self didEndSelector:@selector(didEndSheet:returnCode:contextInfo:) contextInfo:nil];
+}
+- (IBAction)confirmDeleteAFile:(id)sender {
+    [NSApp endSheet:self.deletePanel];
+    action = del;
+    [self runAction];
+}
+- (IBAction)pushChmod:(id)sender {
+    [NSApp beginSheet:self.chmodPanel modalForWindow:self.window modalDelegate:self didEndSelector:@selector(didEndSheet:returnCode:contextInfo:) contextInfo:nil];
+}
+- (IBAction)confirmChmod:(id)sender {
+    [NSApp endSheet:self.chmodPanel];
+    action = chmod;
+    [self runAction];
+}
 
 - (IBAction)abort:(id)sender {
     if (ftpManager) {
@@ -201,6 +224,12 @@
 }
 - (IBAction)dismissFolderOutputPanel:(id)sender {
     [NSApp endSheet:self.fileListOutputPanel];
+}
+- (IBAction)dismissDeletePanel:(id)sender {
+    [NSApp endSheet:self.deletePanel];
+}
+- (IBAction)dismissChmodPanel:(id)sender {
+    [NSApp endSheet:self.chmodPanel];
 }
 
 

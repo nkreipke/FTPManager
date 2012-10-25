@@ -1,14 +1,14 @@
 //
 //  FTPManager.h
-//  FTPTest
+//  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
-//  Copyright 2012 nkreipke. All rights reserved.
-//  http://nkreipke.wordpress.com
+//  Copyright (c) 2012 nkreipke. All rights reserved.
+//  http://nkreipke.de
 //
 
-//  Version 1.2
-//  http://creativecommons.org/licenses/by/3.0/
+//  Version 1.5
+//  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
 // Parts of this class are based on the SimpleFTPSample sample code by Apple.
@@ -46,15 +46,48 @@
 //         - deleteFile:fromServer:
 //
 // ** 1.4.1 (2012-06-08) by nkreipke
-//     - replaced string keys with (id)kFMProcessInfo constants.
+//     - replaced string keys with kFMProcessInfo constants.
 //     - changed method declarations containing an info dictionary to name it processInfo.
 //     - fixed broken createNewFolder method in ARC version
+//
+// ** 1.5 (2012-10-25) by nkreipke
+//     - FMServer:
+//         + anonymousServerWithDestination:(NSURL*)
+//     - added NSURL category FTPManagerNSURLAdditions
+//     - the destination URL does NOT need the "ftp://" prefix anymore
+//     - deleteFile:fromServer: is deprecated
+//     - Methods added:
+//         - deleteFileNamed:fromServer:
+//         - chmodFileNamed:to:atServer:
+//         - checkLogin:
+//     - cleaned up the code a little
+//
 
-// +++++++++++++++++++++++++
-// !! ARC ENABLED VERSION !!
-// +++++++++++++++++++++++++
+// SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************
+
+// LOOK AT FTPMSample1.m FOR AN EXAMPLE HOW TO USE THIS CLASS. ***********
+
 
 #import <Foundation/Foundation.h>
+#import <sys/socket.h>
+#import <sys/types.h>
+#import <netinet/in.h>
+#import <netdb.h>
+
+//FTPManager can log Socket answers if you got problems with
+//deletion and chmod:
+//#define FMSOCKET_VERBOSE
+
+//these are used internally:
+#define FTPANONYMOUS @"anonymous"
+enum {
+    kFTPAnswerSuccess = 200,
+    kFTPAnswerLoggedIn = 230,
+    kFTPAnswerFileActionOkay = 250,
+    kFTPAnswerNeedsPassword = 331,
+    kFTPAnswerNotAvailable = 421,
+    kFTPAnswerNotLoggedIn = 530
+};
 
 @interface FMServer : NSObject {
 //FTPManager Server Object
@@ -67,6 +100,14 @@
 @property  NSString* password;
 @property  NSString* username;
 + (FMServer*) serverWithDestination:(NSURL*)dest username:(NSString*)user password:(NSString*)pass;
++ (FMServer*) anonymousServerWithDestination:(NSURL*)dest;
+@end
+
+@interface NSURL (FTPManagerNSURLAdditions)
+-(NSString*)stringWithoutProtocol;
+-(NSURL*)ftpURL;
+-(NSString*)fmhost;
+-(NSString*)fmdir;
 @end
 
 enum {
@@ -86,17 +127,33 @@ typedef enum {
     _FMCurrentActionCreateNewFolder,
     _FMCurrentActionContentsOfServer,
     _FMCurrentActionDownloadFile,
+    _FMCurrentActionSOCKET,
     _FMCurrentActionNone
 } _FMCurrentAction;
 
-@protocol FTPManagerDelegate;
+/* I do not recommend to use this delegate, because the methods will slow down
+ * the process. On top of this they may have some threading issues that could
+ * be pretty confusing. Use an NSTimer and [manager progress] instead. */
+@protocol FTPManagerDelegate <NSObject>
+@optional
+- (void)ftpManagerUploadProgressDidChange:(NSDictionary *)processInfo;
+// Returns information about the current upload.
+// See "Process Info Dictionary Constants" below for detailed info.
+- (void)ftpManagerDownloadProgressDidChange:(NSDictionary *)processInfo;
+// Returns information about the current download.
+// See "Process Info Dictionary Constants" below for detailed info.
+@end
 
-// Process Info Dictionary Constants: ************************************
+#pragma mark - Process Info Dictionary Constants
+
+// Process Info Dictionary Constants (for [manager progress]): ******************
 #define kFMProcessInfoProgress @"progress" // 0.0 to 1.0
 #define kFMProcessInfoFileSize @"fileSize"
 #define kFMProcessInfoBytesProcessed @"bytesProcessed"
 #define kFMProcessInfoFileSizeProcessed @"fileSizeProcessed"
-// ---------------------------------(returns NSNumber values)-------------
+// ---------------------------------(returns NSNumber values)--------------------
+
+#pragma mark -
 
 @interface FTPManager : NSObject <NSStreamDelegate> {
     NSInputStream* fileReader;
@@ -121,7 +178,8 @@ typedef enum {
 
 @property (assign) id<FTPManagerDelegate>delegate;
 
-//Public Methods:
+#pragma mark - Public Methods
+
 // *** Information
 // These methods hold the current thread. You will get an answer with a success information.
 - (BOOL) uploadFile:(NSURL*)fileURL toServer:(FMServer*)server;
@@ -149,35 +207,42 @@ typedef enum {
 // Downloads a file from a server.
 // Returns YES if the download was successful, otherwise returns NO.
 // Any existing files will be overwritten.
-- (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server;
-// -(BOOL) deleteFile:fromServer:
-// Deletes a file or directory from a server. Use absolute path on server as path parameter!
-// When trying to delete directories, make sure that the directory is empty.
-// The URL must end with slash (/)!
+- (BOOL) deleteFileNamed:(NSString*)fileName fromServer:(FMServer*)server;
+// -(BOOL) deleteFileNamed:fromServer:
+// Deletes a file from a server. Also deletes directories if they are empty.
+// Returns YES if the file was deleted.
+- (BOOL) chmodFileNamed:(NSString*)fileName to:(int)mode atServer:(FMServer*)server;
+// -(BOOL) chmodFileNamed:to:atServer:
+// Changes the mode of a file on a server. Works only on UNIX servers.
+// Returns YES if the chmod command was successful.
+- (BOOL) checkLogin:(FMServer*)server;
+// -(BOOL) checkLogin:
+// Logs into the FTP server and logs out again. This can be used to check whether the credentials are
+// correct before trying to do a file operation.
+// Returns YES if the login was successful.
 - (NSMutableDictionary *) progress;
 // -(NSMutableDictionary *) progress
 // Returns information about the current process. As the FTP methods hold the thread, you may
 // want to call this method from a different thread that updates the UI.
-// Returns an NSDictionary containing NSNumber values for the keys:
-// kFMProcessInfoProgress, kFMProcessInfoFileSize,
-// kFMProcessInfoBytesProcessed, kFMProcessInfoFileSizeProcessed
-// Returns nil if no process is currently running or information could not be determined.
+// See 'Process Info Dictionary Constants' above for information about the contents of the
+// dictionary.
+// Returns nil if no process is currently running or information could not be determined. This
+// method only works when downloading or uploading a file.
 - (void) abort;
 // -(void) abort
 // Aborts the current process. As the FTP methods hold the thread, you may want to call this
 // method from a different thread.
 
-@end
 
-@protocol FTPManagerDelegate <NSObject>
 
-@optional
-- (void)ftpManagerUploadProgressDidChange:(NSDictionary *)processInfo;
-// Returns information about the current upload.
-// See "Process Info Dictionary Constants" above for detailed info.
-@optional
-- (void)ftpManagerDownloadProgressDidChange:(NSDictionary *)processInfo;
-// Returns information about the current download.
-// See "Process Info Dictionary Constants" above for detailed info.
+
+
+//deprecated:
+- (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server DEPRECATED_ATTRIBUTE;
+// ** THIS METHOD IS DEPRECATED! Use deleteFileNamed:fromServer: instead. **
+// -(BOOL) deleteFile:fromServer:
+// Deletes a file or directory from a server. Use absolute path on server as path parameter!
+// When trying to delete directories, make sure that the directory is empty.
+// The URL must end with slash (/)!
 
 @end
