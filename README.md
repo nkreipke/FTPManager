@@ -10,6 +10,6 @@ Copy FTPManager.h and FTPManager.m into your project to use it in your own app. 
 Created by [nkreipke](http://nkreipke.de "nkreipke") and [jweinert](http://www.csundm.de "csundm") (both links refer to German pages).
 For questions, email git@nkreipke.de.
 
-For licence information, please refer to the license file in the FTPManager directory.
+For license information, please refer to the license file in the FTPManager directory.
 
 Feel free to fork and improve this project.
