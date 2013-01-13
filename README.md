@@ -6,6 +6,8 @@ The methods in this class hold the thread - so you may want to call them in a ba
 ### Information
 Copy FTPManager.h and FTPManager.m into your project to use it in your own app. To make this class work, you have to link to **CoreServices.framework** (Mac) or **CFNetwork.framework** (iOS).
 
+**Notice:** I strongly recommend creating a strong property for FTPManager. There is an issue that ARC may remove the instance too early if it is declared directly in the method.
+
 ### Creators
 Created by [nkreipke](http://nkreipke.de "nkreipke") and [jweinert](http://www.csundm.de "csundm") (both links refer to German pages).
 For questions, email git@nkreipke.de.
