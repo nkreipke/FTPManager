@@ -53,7 +53,7 @@ NSTimer* progTimer;
 }
 
 -(void)upload:(NSString*)file ftpUrl:(NSString*)url ftpUsr:(NSString*)user ftpPass:(NSString*)pass {
-    server = [FMServer serverWithDestination:[NSURL URLWithString:url] username:user password:pass];
+    server = [FMServer serverWithDestination:url username:user password:pass];
     filePath = file;
     progTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(changeProgress) userInfo:nil repeats:YES];
     [self performSelectorInBackground:@selector(startUploading) withObject:nil];
