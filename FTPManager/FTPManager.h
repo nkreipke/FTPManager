@@ -62,6 +62,13 @@
 //         - checkLogin:
 //     - cleaned up the code a little
 //
+// ** 1.6 (2013-01-13) by nkreipke
+//     - FMServer:
+//         - FMServer.destination is now NSString! You will have to change this in your code.
+//         - In FMSever.port the port can be specified. This is 21 by default.
+//         - fixed a bug where variables were not retained properly
+//     - fixed a bug where an empty file was created if downloadFile was not successful
+//
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************
 
@@ -80,32 +87,35 @@
 
 //these are used internally:
 #define FTPANONYMOUS @"anonymous"
-enum {
+/*enum {
     kFTPAnswerSuccess = 200,
     kFTPAnswerLoggedIn = 230,
     kFTPAnswerFileActionOkay = 250,
     kFTPAnswerNeedsPassword = 331,
     kFTPAnswerNotAvailable = 421,
     kFTPAnswerNotLoggedIn = 530
-};
+};*/
 
 @interface FMServer : NSObject {
-//FTPManager Server Object
 @private
-    NSURL* destination;
+    NSString* destination;
     NSString* password;
     NSString* username;
+    int port;
 }
-@property  NSURL* destination;
-@property  NSString* password;
-@property  NSString* username;
-+ (FMServer*) serverWithDestination:(NSURL*)dest username:(NSString*)user password:(NSString*)pass;
-+ (FMServer*) anonymousServerWithDestination:(NSURL*)dest;
+@property (strong) NSString* destination;
+@property (strong) NSString* password;
+@property (strong) NSString* username;
+@property  (unsafe_unretained) int port;
+
++ (FMServer*) serverWithDestination:(NSString*)dest username:(NSString*)user password:(NSString*)pass;
++ (FMServer*) anonymousServerWithDestination:(NSString*)dest;
+
 @end
 
-@interface NSURL (FTPManagerNSURLAdditions)
+@interface NSString (FTPManagerNSStringAdditions)
 -(NSString*)stringWithoutProtocol;
--(NSURL*)ftpURL;
+-(NSURL*)ftpURLForPort:(int)port;
 -(NSString*)fmhost;
 -(NSString*)fmdir;
 @end

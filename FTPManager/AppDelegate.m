@@ -97,7 +97,8 @@
     ftpManager = [[FTPManager alloc] init];
     success = NO;
     NSArray* serverData = nil;
-    FMServer* srv = [FMServer serverWithDestination:[[NSURL URLWithString:self.serverURLField.stringValue] URLByAppendingPathComponent:self.directoryField.stringValue] username:self.loginUserField.stringValue password:self.loginPasswordField.stringValue];
+    FMServer* srv = [FMServer serverWithDestination:[self.serverURLField.stringValue stringByAppendingPathComponent:self.directoryField.stringValue] username:self.loginUserField.stringValue password:self.loginPasswordField.stringValue];
+    srv.port = self.portField.intValue;
     switch (action) {
         case upload:
             success = [ftpManager uploadFile:fileURL toServer:srv];

@@ -53,6 +53,7 @@ enum actions {
 @property (weak) IBOutlet NSTextField *loginUserField;
 @property (weak) IBOutlet NSSecureTextField *loginPasswordField;
 @property (weak) IBOutlet NSTextField *directoryField;
+@property (weak) IBOutlet NSTextField *portField;
 
 - (IBAction)pushUploadAFile:(id)sender;
 - (IBAction)pushDownloadAFile:(id)sender;

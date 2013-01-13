@@ -62,10 +62,18 @@
 //         - checkLogin:
 //     - cleaned up the code a little
 //
+// ** 1.6 (2013-01-13) by nkreipke
+//     - FMServer:
+//         - fixed a bug where variables were not retained properly
+//         - FMServer.destination is now NSString! You will have to change that in your code.
+//         - In FMSever.port the port can be specified. This is 21 by default.
+//     - fixed a bug where an empty file was created if downloadFile was not successful
+//
 
 #import "FTPManager.h"
 
 #define And(val1, val2) { val1 = val1 && val2; }
+#define AndV(val1, val2, message) { And(val1, val2); if (!val2) NSLog(message); }
 #define Check(val1) { if (val1 == NO) return NO; }
 
 #pragma mark -
@@ -105,10 +113,12 @@
 
 - (BOOL) _checkFMServer:(FMServer*)server {
     BOOL success = YES;
-    And(success, (server != nil));
+    AndV(success, (server != nil), @"FMServer check failed: server cannot be nil");
     Check(success);
-    And(success, (server.username != nil));
-    And(success, (server.password != nil));
+    AndV(success, (server.destination != nil), @"FMServer check failed: destination cannot be nil");
+    AndV(success, (server.username != nil), @"FMServer check failed: username cannot be nil");
+    AndV(success, (server.password != nil), @"FMServer check failed: password cannot be nil");
+    AndV(success, (server.port > 0), @"FMServer check failed: port cannot be negative");
     return success;
 }
 
@@ -158,7 +168,7 @@
     fileSize = data.length;
     fileSizeProcessed = 0;
     
-    NSURL * finalURL = [server.destination.ftpURL URLByAppendingPathComponent:fileName];
+    NSURL * finalURL = [[server.destination ftpURLForPort:server.port] URLByAppendingPathComponent:fileName];
     And(success, (finalURL != nil));
     Check(success);
     
@@ -200,7 +210,7 @@
     fileSize = [self fileSizeOf:fileURL];
     fileSizeProcessed = 0;
     
-    NSURL * finalURL = [server.destination.ftpURL URLByAppendingPathComponent:[fileURL lastPathComponent]];    
+    NSURL * finalURL = [[server.destination ftpURLForPort:server.port] URLByAppendingPathComponent:[fileURL lastPathComponent]];
     And(success, (finalURL != nil));
     Check(success);
     
@@ -240,7 +250,7 @@
     
     fileSize = 0;
     
-    NSURL * finalURL = [server.destination.ftpURL URLByAppendingPathComponent:folderName isDirectory:YES];
+    NSURL * finalURL = [[server.destination ftpURLForPort:server.port] URLByAppendingPathComponent:folderName isDirectory:YES];
     And(success, (finalURL != nil));
     Check(success);
     
@@ -278,7 +288,7 @@
     
     directoryListingData = [[NSMutableData alloc] init];
     
-    NSURL* dest = server.destination.ftpURL;
+    NSURL* dest = [server.destination ftpURLForPort:server.port];
     
     if (![dest.absoluteString hasSuffix:@"/"]) {
         //if the url does not end with an '/' the method fails.
@@ -322,12 +332,14 @@
     fileSize = 0;
     fileSizeProcessed = 0;
     
-    fileWriter = [[NSOutputStream alloc] initToFileAtPath:[directoryURL URLByAppendingPathComponent:fileName].path append:NO];
+    NSString* filePath = [directoryURL URLByAppendingPathComponent:fileName].path;
+    
+    fileWriter = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
     And(success, (fileWriter != nil));
     Check(success);
     [fileWriter open];
     
-    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)[server.destination.ftpURL URLByAppendingPathComponent:fileName]);
+    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)[[server.destination ftpURLForPort:server.port] URLByAppendingPathComponent:fileName]);
     And(success, (readStream != NULL));
     Check(success);
     serverReadStream = (__bridge NSInputStream*) readStream;
@@ -349,6 +361,11 @@
     CFRunLoopRun();
     
     And(success, streamSuccess);
+    
+    if (!success && [[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
+        //if the download fails, we try to delete the empty file created by the stream.
+        [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
+    }
     
     return success;
 }
@@ -691,7 +708,7 @@
 
 -(BOOL) _checkAnswers:(NSString*)a {
     NSArray* answers = [a componentsSeparatedByString:@"\n"];
-    //we are interested in the first character in the answer.
+    //we are interested in the first character of the answer.
     //if this is a 4 or 5, the corresponding command failed.
     for (NSString* answer in answers) {
         const char*canswer = [answer cStringUsingEncoding:NSUTF8StringEncoding];
@@ -704,7 +721,7 @@
 }
 
 -(BOOL) _ftpActionForServer:(FMServer*)server command:(NSString*)fullCommand {
-    //We do this dirty: At first, we send all the commands, then we fetch the answers
+    //At first, we send all the commands, then we fetch the answers
     //to find out whether we were successful.
     
     action = _FMCurrentActionSOCKET;
@@ -738,7 +755,7 @@
     bcopy((char*)srv->h_addr,
           (char*)&serv_addr.sin_addr.s_addr,
           srv->h_length);
-    serv_addr.sin_port = htons(21);
+    serv_addr.sin_port = htons(server.port);
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         NSLog(@"error connecting.");
         return NO;
@@ -798,15 +815,23 @@
 #pragma mark -
 
 @implementation FMServer
-@synthesize password, username, destination;
-+(FMServer*)serverWithDestination:(NSURL*)dest username:(NSString*)user password:(NSString*)pass {
+@synthesize password, username, destination, port;
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.port = 21;
+    }
+    return self;
+}
++(FMServer*)serverWithDestination:(NSString*)dest username:(NSString*)user password:(NSString*)pass {
     FMServer* server = [[FMServer alloc] init];
     server.destination = dest;
     server.username = user;
     server.password = pass;
     return server;
 }
-+ (FMServer*) anonymousServerWithDestination:(NSURL*)dest {
++ (FMServer*) anonymousServerWithDestination:(NSString*)dest {
     FMServer* server = [[FMServer alloc] init];
     server.destination = dest;
     server.username = FTPANONYMOUS;
@@ -815,26 +840,36 @@
 }
 @end
 
-@implementation NSURL (FTPManagerNSURLAdditions)
+@implementation NSString (FTPManagerNSStringAdditions)
 -(NSString*)stringWithoutProtocol {
-    NSString* urlString = [self absoluteString];
+    NSString* urlString = [NSString stringWithString:self];
     NSRange range = [urlString rangeOfString:@"://"];
     if (range.location != NSNotFound) {
         urlString = [urlString substringFromIndex:range.location + 3];
     }
+    //test whether a port is included (which would not work)
+    NSRange rangeP = [urlString rangeOfString:@":"];
+    if (rangeP.location != NSNotFound) {
+        const char *ptr = [urlString cStringUsingEncoding:NSUTF8StringEncoding];
+        while (*ptr != '/' && *ptr != '\0') {
+            if (*(ptr++) == ':') {
+                NSLog(@"FTPManager warning: there is possibly a port included in your destination url. Define the port in FMServer.port instead.");
+                break;
+            }
+        }
+    }
     return urlString;
 }
--(NSURL*)ftpURL {
-    NSString* urlString = [self absoluteString];
-    if ([urlString hasPrefix:@"ftp://"]) {
-        return [NSURL URLWithString:urlString];
-    }
+-(NSURL*)ftpURLForPort:(int)port {
     //return ftp:// version
+    if (port != 21) {
+        return [NSURL URLWithString:[NSString stringWithFormat:@"ftp://%@:%i",[self stringWithoutProtocol],port]];
+    }
     return [NSURL URLWithString:[NSString stringWithFormat:@"ftp://%@",[self stringWithoutProtocol]]];
 }
 -(NSString*)fmhost {
-    //This replaces the [url host] method as it does not work if no
-    //protocol is specified.
+    //returns the host
+    // ftp://test.com/test/test -> test.com
     NSString* u = [self stringWithoutProtocol];
     NSRange fs = [u rangeOfString:@"/"];
     if (fs.location != NSNotFound) {
@@ -844,7 +879,8 @@
     }
 }
 -(NSString*)fmdir {
-    //returns the url without host and protocol
+    //returns the working directory
+    // ftp://test.com/test/test -> test/test
     NSString* u = [self stringWithoutProtocol];
     NSRange fs = [u rangeOfString:@"/"];
     if (fs.location == NSNotFound) {
