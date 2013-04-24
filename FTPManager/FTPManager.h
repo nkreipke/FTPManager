@@ -1,5 +1,5 @@
 //
-//  FTPManager.h
+//  FTPManager.m
 //  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
@@ -7,7 +7,7 @@
 //  http://nkreipke.de
 //
 
-//  Version 1.5
+//  Version 1.6.2
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -64,10 +64,15 @@
 //
 // ** 1.6 (2013-01-13) by nkreipke
 //     - FMServer:
-//         - FMServer.destination is now NSString! You will have to change this in your code.
-//         - In FMSever.port the port can be specified. This is 21 by default.
 //         - fixed a bug where variables were not retained properly
+//         - FMServer.destination is now NSString! You will have to change that in your code.
+//         - In FMSever.port the port can be specified. This is 21 by default.
 //     - fixed a bug where an empty file was created if downloadFile was not successful
+//
+// ** (1.6.1 -> release for CocoaPods)
+//
+// ** 1.6.2 (2013-04-24) by nkreipke
+//     - fixed a bug that occured in iOS 6 (https://github.com/nkreipke/FTPManager/issues/5)
 //
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************
@@ -166,12 +171,7 @@ typedef enum {
 #pragma mark -
 
 @interface FTPManager : NSObject <NSStreamDelegate> {
-    NSInputStream* fileReader;
-    NSOutputStream* serverStream;
-    NSInputStream* serverReadStream;
-    NSOutputStream* fileWriter;
     CFRunLoopRef currentRunLoop;
-    NSMutableData* directoryListingData;
     
     _FMCurrentAction action;
     
@@ -185,6 +185,14 @@ typedef enum {
     
     BOOL streamSuccess;
 }
+
+@property (strong) NSInputStream *fileReader; //reads from local file
+@property (strong) NSOutputStream *fileWriter; //writes to local file
+@property (strong) NSInputStream *serverReadStream; //reads from server
+@property (strong) NSOutputStream *serverStream; //writes to server
+
+@property (strong) NSMutableData *directoryListingData;
+
 
 @property (assign) id<FTPManagerDelegate>delegate;
 

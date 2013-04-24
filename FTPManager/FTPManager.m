@@ -7,7 +7,7 @@
 //  http://nkreipke.de
 //
 
-//  Version 1.5
+//  Version 1.6.2
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -68,6 +68,12 @@
 //         - FMServer.destination is now NSString! You will have to change that in your code.
 //         - In FMSever.port the port can be specified. This is 21 by default.
 //     - fixed a bug where an empty file was created if downloadFile was not successful
+//
+// ** (1.6.1 -> release for CocoaPods)
+//
+// ** 1.6.2 (2013-04-24) by nkreipke
+//     - fixed a bug that occured in iOS 6 (https://github.com/nkreipke/FTPManager/issues/5)
+//     - fixed garbage value bug
 //
 
 #import "FTPManager.h"
@@ -137,8 +143,8 @@
     do {
         CFIndex bytesConsumed;
         CFDictionaryRef thisEntry = NULL;
-        bytesConsumed = CFFTPCreateParsedResourceListing(NULL, &((const uint8_t *) directoryListingData.bytes)[offset],
-                                                         directoryListingData.length - offset, &thisEntry);
+        bytesConsumed = CFFTPCreateParsedResourceListing(NULL, &((const uint8_t *) self.directoryListingData.bytes)[offset],
+                                                         self.directoryListingData.length - offset, &thisEntry);
         if (bytesConsumed > 0) {
             if (thisEntry != NULL) {
                 [listingArray addObject:(__bridge NSDictionary*)thisEntry];
@@ -172,18 +178,18 @@
     And(success, (finalURL != nil));
     Check(success);
     
-    fileReader = [[NSInputStream alloc] initWithData:data];
-    And(success, (fileReader != nil));
+    self.fileReader = [[NSInputStream alloc] initWithData:data];
+    And(success, (self.fileReader != nil));
     Check(success);
-    [fileReader open];
+    [self.fileReader open];
     
     CFWriteStreamRef writeStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)finalURL);
     And(success, (writeStream != NULL));
     Check(success);
-    serverStream = (__bridge NSOutputStream*) writeStream;
+    self.serverStream = (__bridge NSOutputStream*) writeStream;
     
-    And(success, [serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
-    And(success, [serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
+    And(success, [self.serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
+    And(success, [self.serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
     Check(success);
     
     self.bufferOffset = 0;
@@ -191,9 +197,9 @@
     
     currentRunLoop = CFRunLoopGetCurrent();
     
-    serverStream.delegate = self;
-    [serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [serverStream open];
+    self.serverStream.delegate = self;
+    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [self.serverStream open];
     
     CFRunLoopRun();
     
@@ -214,18 +220,18 @@
     And(success, (finalURL != nil));
     Check(success);
     
-    fileReader = [[NSInputStream alloc] initWithFileAtPath:fileURL.path];
-    And(success, (fileReader != nil));
+    self.fileReader = [[NSInputStream alloc] initWithFileAtPath:fileURL.path];
+    And(success, (self.fileReader != nil));
     Check(success);
-    [fileReader open];
+    [self.fileReader open];
     
     CFWriteStreamRef writeStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)finalURL);
     And(success, (writeStream != NULL));
     Check(success);
-    serverStream = (__bridge NSOutputStream*) writeStream;
+    self.serverStream = (__bridge NSOutputStream*) writeStream;
     
-    And(success, [serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
-    And(success, [serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
+    And(success, [self.serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
+    And(success, [self.serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
     Check(success);
     
     self.bufferOffset = 0;
@@ -233,9 +239,9 @@
     
     currentRunLoop = CFRunLoopGetCurrent();
     
-    serverStream.delegate = self;
-    [serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [serverStream open];
+    self.serverStream.delegate = self;
+    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [self.serverStream open];
     
     CFRunLoopRun();
     
@@ -257,10 +263,10 @@
     CFWriteStreamRef writeStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)finalURL);
     And(success, (writeStream != NULL));
     Check(success);
-    serverStream = (__bridge NSOutputStream*) writeStream;
+    self.serverStream = (__bridge NSOutputStream*) writeStream;
     
-    And(success, [serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
-    And(success, [serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
+    And(success, [self.serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
+    And(success, [self.serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
     Check(success);
     
     self.bufferOffset = 0;
@@ -268,9 +274,9 @@
     
     currentRunLoop = CFRunLoopGetCurrent();
     
-    serverStream.delegate = self;
-    [serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [serverStream open];
+    self.serverStream.delegate = self;
+    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [self.serverStream open];
     
     CFRunLoopRun();
     
@@ -286,7 +292,7 @@
     
     fileSize = 0;
     
-    directoryListingData = [[NSMutableData alloc] init];
+    self.directoryListingData = [[NSMutableData alloc] init];
     
     NSURL* dest = [server.destination ftpURLForPort:server.port];
     
@@ -299,10 +305,10 @@
     CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)dest);
     And(success, (readStream != NULL));
     if (!success) return nil;
-    serverReadStream = (__bridge NSInputStream*) readStream;
+    self.serverReadStream = (__bridge NSInputStream*) readStream;
     
-    And(success, [serverReadStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
-    And(success, [serverReadStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
+    And(success, [self.serverReadStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
+    And(success, [self.serverReadStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
     if (!success) return nil;
     
     self.bufferOffset = 0;
@@ -310,17 +316,17 @@
     
     currentRunLoop = CFRunLoopGetCurrent();
     
-    serverReadStream.delegate = self;
-    [serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [serverReadStream open];
+    self.serverReadStream.delegate = self;
+    [self.serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [self.serverReadStream open];
     
     CFRunLoopRun();
     
     And(success, streamSuccess);
     if (!success) return nil;
     
-    NSArray* directoryContents = [self _createListingArrayFromDirectoryListingData:directoryListingData];
-    directoryListingData = nil;
+    NSArray* directoryContents = [self _createListingArrayFromDirectoryListingData:self.directoryListingData];
+    self.directoryListingData = nil;
     
     return directoryContents;
 }
@@ -334,19 +340,19 @@
     
     NSString* filePath = [directoryURL URLByAppendingPathComponent:fileName].path;
     
-    fileWriter = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
-    And(success, (fileWriter != nil));
+    self.fileWriter = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
+    And(success, (self.fileWriter != nil));
     Check(success);
-    [fileWriter open];
+    [self.fileWriter open];
     
     CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)[[server.destination ftpURLForPort:server.port] URLByAppendingPathComponent:fileName]);
     And(success, (readStream != NULL));
     Check(success);
-    serverReadStream = (__bridge NSInputStream*) readStream;
+    self.serverReadStream = (__bridge NSInputStream*) readStream;
     
-    And(success, [serverReadStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
-    And(success, [serverReadStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
-    And(success, [serverReadStream setProperty:[NSNumber numberWithBool:YES] forKey:(id)kCFStreamPropertyFTPFetchResourceInfo]);
+    And(success, [self.serverReadStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
+    And(success, [self.serverReadStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
+    And(success, [self.serverReadStream setProperty:[NSNumber numberWithBool:YES] forKey:(id)kCFStreamPropertyFTPFetchResourceInfo]);
     Check(success);
     
     self.bufferOffset = 0;
@@ -354,9 +360,9 @@
     
     currentRunLoop = CFRunLoopGetCurrent();
     
-    serverReadStream.delegate = self;
-    [serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [serverReadStream open];
+    self.serverReadStream.delegate = self;
+    [self.serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [self.serverReadStream open];
     
     CFRunLoopRun();
     
@@ -476,10 +482,10 @@
     NSStream* currentStream;
     switch (action) {
         case _FMCurrentActionUploadFile:
-            currentStream = serverStream;
+            currentStream = self.serverStream;
             break;
         case _FMCurrentActionDownloadFile:
-            currentStream = serverReadStream;
+            currentStream = self.serverReadStream;
             break;
         default:
             break;
@@ -503,16 +509,16 @@
     NSStream* currentStream;
     switch (action) {
         case _FMCurrentActionUploadFile:
-            currentStream = serverStream;
+            currentStream = self.serverStream;
             break;
         case _FMCurrentActionDownloadFile:
-            currentStream = serverReadStream;
+            currentStream = self.serverReadStream;
             break;
         case _FMCurrentActionCreateNewFolder:
-            currentStream = serverStream;
+            currentStream = self.serverStream;
             break;
         case _FMCurrentActionContentsOfServer:
-            currentStream = serverReadStream;
+            currentStream = self.serverReadStream;
             break;
         default:
             break;
@@ -544,25 +550,25 @@
                 break;
         }
     }
-    if (serverStream) {
-        [serverStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-        serverStream.delegate = nil;
-        [serverStream close];
-        serverStream = nil;
+    if (self.serverStream) {
+        [self.serverStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+        self.serverStream.delegate = nil;
+        [self.serverStream close];
+        self.serverStream = nil;
     }
-    if (serverReadStream) {
-        [serverReadStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-        serverReadStream.delegate = nil;
-        [serverReadStream close];
-        serverReadStream = nil;
+    if (self.serverReadStream) {
+        [self.serverReadStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+        self.serverReadStream.delegate = nil;
+        [self.serverReadStream close];
+        self.serverReadStream = nil;
     }
-    if (fileReader) {
-        [fileReader close];
-        fileReader = nil;
+    if (self.fileReader) {
+        [self.fileReader close];
+        self.fileReader = nil;
     }
-    if (fileWriter) {
-        [fileWriter close];
-        fileWriter = nil;
+    if (self.fileWriter) {
+        [self.fileWriter close];
+        self.fileWriter = nil;
     }
     CFRunLoopStop(currentRunLoop);
 }
@@ -582,20 +588,20 @@
             if (action == _FMCurrentActionContentsOfServer) {
                 NSInteger       bytesRead;
                 
-                bytesRead = [serverReadStream read:self.buffer maxLength:kSendBufferSize];
+                bytesRead = [self.serverReadStream read:self.buffer maxLength:kSendBufferSize];
                 if (bytesRead == -1) {
                     [self _streamDidEndWithSuccess:NO failureReason:FMStreamFailureReasonReadError];
                 } else if (bytesRead == 0) {
                     [self _streamDidEndWithSuccess:YES failureReason:FMStreamFailureReasonNone];
                 } else {
-                    [directoryListingData appendBytes:self.buffer length:bytesRead];
+                    [self.directoryListingData appendBytes:self.buffer length:bytesRead];
                 }
             } else if (action == _FMCurrentActionDownloadFile) {
                 if (self.bufferOffset == self.bufferLimit) {
                     //fill buffer with data from server
                     NSInteger   bytesRead;
                     
-                    bytesRead = [serverReadStream read:self.buffer maxLength:kSendBufferSize];
+                    bytesRead = [self.serverReadStream read:self.buffer maxLength:kSendBufferSize];
                     
                     if (bytesRead == -1) {
                         [self _streamDidEndWithSuccess:NO failureReason:FMStreamFailureReasonReadError];
@@ -615,7 +621,7 @@
                 if (self.bufferOffset != self.bufferLimit) {
                     //fill file with buffer
                     NSInteger   bytesWritten;
-                    bytesWritten = [fileWriter write:&self.buffer[self.bufferOffset] maxLength:self.bufferLimit - self.bufferOffset];
+                    bytesWritten = [self.fileWriter write:&self.buffer[self.bufferOffset] maxLength:self.bufferLimit - self.bufferOffset];
                     if (bytesWritten == -1 || bytesWritten == 0) {
                         [self _streamDidEndWithSuccess:NO failureReason:FMStreamFailureReasonWriteError];
                     } else {
@@ -634,7 +640,7 @@
                     //fill buffer with data
                     NSInteger   bytesRead;
                     
-                    bytesRead = [fileReader read:self.buffer maxLength:kSendBufferSize];
+                    bytesRead = [self.fileReader read:self.buffer maxLength:kSendBufferSize];
                     
                     if (bytesRead == -1) {
                         [self _streamDidEndWithSuccess:NO failureReason:FMStreamFailureReasonReadError];
@@ -650,7 +656,7 @@
                     //write process
                     //write data out of buffer to server
                     NSInteger   bytesWritten;
-                    bytesWritten = [serverStream write:&self.buffer[self.bufferOffset] maxLength:self.bufferLimit - self.bufferOffset];
+                    bytesWritten = [self.serverStream write:&self.buffer[self.bufferOffset] maxLength:self.bufferLimit - self.bufferOffset];
                     if (bytesWritten == -1 || bytesWritten == 0) {
                         [self _streamDidEndWithSuccess:NO failureReason:FMStreamFailureReasonWriteError];
                     } else {
@@ -689,7 +695,7 @@
 -(NSString*) _listenLoopForSocket:(int)sockfd {
     NSString* answer = @"";
     char buffer[256];
-    ssize_t n;
+    ssize_t n = 1;
     while (n > 0) {
         bzero(buffer, 256);
         n = read(sockfd, buffer, 255);
