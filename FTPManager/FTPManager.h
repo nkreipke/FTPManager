@@ -108,12 +108,45 @@
     NSString* username;
     int port;
 }
+
+/**
+ *  The URL of the FMServer.
+ */
 @property (strong) NSString* destination;
+
+/**
+ *  The password for the FMServer login.
+ */
 @property (strong) NSString* password;
+
+/**
+ *  The username for the FMServer login.
+ */
 @property (strong) NSString* username;
+
+/**
+ *  The port which is used for the connection.
+ */
 @property  (unsafe_unretained) int port;
 
+/**
+ *  Returns a FMServer initialized with the given URL and credentials.
+ *
+ *  @param dest The URL of the FTP server.
+ *  @param user The username of the account which will be used to log in.
+ *  @param pass The password which will be used to log in.
+ *
+ *  @return A FMServer object with the given URL, username and password.
+ */
 + (FMServer*) serverWithDestination:(NSString*)dest username:(NSString*)user password:(NSString*)pass;
+
+/**
+ *  Returns a FMServer initialized with the given URL and anonymous login.
+ *
+ *  @param dest The URL of the FTP server.
+ *
+ *  @return A FMServer object with the given URL and anonymous login.
+ */
 + (FMServer*) anonymousServerWithDestination:(NSString*)dest;
 
 @end
@@ -186,10 +219,25 @@ typedef enum {
     BOOL streamSuccess;
 }
 
-@property (strong) NSInputStream *fileReader; //reads from local file
-@property (strong) NSOutputStream *fileWriter; //writes to local file
-@property (strong) NSInputStream *serverReadStream; //reads from server
-@property (strong) NSOutputStream *serverStream; //writes to server
+/**
+ *  Input steam for reading from a local file
+ */
+@property (strong) NSInputStream *fileReader;
+
+/**
+ *  Output stream for writing to a local file
+ */
+@property (strong) NSOutputStream *fileWriter;
+
+/**
+ *  Input stream for reading from the server (remote file)
+ */
+@property (strong) NSInputStream *serverReadStream;
+
+/**
+ *  Output stream for writing to the server (remote file)
+ */
+@property (strong) NSOutputStream *serverStream;
 
 @property (strong) NSMutableData *directoryListingData;
 
@@ -200,67 +248,116 @@ typedef enum {
 
 // *** Information
 // These methods hold the current thread. You will get an answer with a success information.
+
+/**
+ *  Uploads a file to a server. Existing remote files of the same name will be overwritten.
+ *
+ *  @param fileURL The local file which will be uploaded to the FTP server.
+ *  @param server  The FTP server which the file will be uploaded to.
+ *
+ *  @return YES if the upload was successful, NO otherwise.
+ */
 - (BOOL) uploadFile:(NSURL*)fileURL toServer:(FMServer*)server;
-// -(BOOL) uploadFile:toServer:
-// Uploads a file to a server.
-// Returns YES if the upload was successful, otherwise returns NO.
-// Any existing files will be overwritten.
+
+/**
+ *  Uploads NSData to a server. Existing remote files of the same name will be overwritten.
+ *
+ *  @param data     The data which will be written to the FTP server.
+ *  @param fileName The name with which the new file will be created on the FTP server.
+ *  @param server   The FTP server on which the file with the given data will be created.
+ *
+ *  @return YES if the upload was successful, NO otherwise.
+ */
 - (BOOL) uploadData:(NSData*)data withFileName:(NSString *)fileName toServer:(FMServer*)server;
-// -(BOOL) uploadData:toServer:
-// Uploads NSData to a server.
-// Returns YES if the upload was successful, otherwise returns NO.
-// Any existing files will be overwritten.
+
+/**
+ *  Creates a new folder on the specified FTP server.
+ *
+ *  @param folderName The name of the folder to create.
+ *  @param server     The FTP server on which the new folder should be created.
+ *
+ *  @return YES if the folder creation was successful, NO otherwise.
+ */
 - (BOOL) createNewFolder:(NSString*)folderName atServer:(FMServer*)server;
-// -(BOOL) createNewFolder:atServer:
-// Creates a new folder.
-// Returns YES if the creation was successful, otherwise returns NO.
+
+/**
+ *  Returns a list of files and folders at the specified FTP server. as an NSArray containing instances of NSDictionary.
+ *  The dictionaries contain objects declared in CFStream FTP Resource Constants. To get the name of the entry, get the object for the (id)kCFFTPResourceName key.
+ *
+ *  @param server The FTP server whose contents will be listed.
+ *
+ *  @return The NSArray containing instances of NSDictionary. An empty array if the server has no contents. nil if there was an error during the process.
+ */
 - (NSArray*) contentsOfServer:(FMServer*)server;
-// -(NSArray*) contentsOfServer:
-// Returns a list of files and folders at a server. Returns an array of NSDictionary.
-// Returns nil if there was an error during the process. Returns an empty array if the server has no contents.
-// To get the name of the entry, get the object for the (id)kCFFTPResourceName key.
-// The dictionaries contain objects declared in CFStream FTP Resource Constants.
+
+/**
+ *  Downloads a file from the specified FTP server. Existing local files of the same name will be overwritten.
+ *
+ *  @param fileName     The file which will be downloaded from the specified FTP server.
+ *  @param directoryURL The local directory the file will be downloaded to.
+ *  @param server       The server the file will be downloaded from.
+ *
+ *  @return YES if the download was successful, NO otherwise
+ */
 - (BOOL) downloadFile:(NSString*)fileName toDirectory:(NSURL*)directoryURL fromServer:(FMServer*)server;
-// -(BOOL) downloadFile:toDirectory:fromServer:
-// Downloads a file from a server.
-// Returns YES if the download was successful, otherwise returns NO.
-// Any existing files will be overwritten.
+
+/**
+ *  Delete a file from the specified FTP server and delete directories if they are empty.
+ *
+ *  @param fileName The file which will be deleted from the FTP server.
+ *  @param server   The FTP server from which the file or directory will be deleted.
+ *
+ *  @return YES if the file was successfully deleted from the server, NO otherwise.
+ */
 - (BOOL) deleteFileNamed:(NSString*)fileName fromServer:(FMServer*)server;
-// -(BOOL) deleteFileNamed:fromServer:
-// Deletes a file from a server. Also deletes directories if they are empty.
-// Returns YES if the file was deleted.
+
+/**
+ *  Changes the mode of a file on a server. Works only on UNIX servers.
+ *
+ *  @param fileName The file whose permissions will be modified.
+ *  @param mode     The mode which will be applied to the remote file in octal notation.
+ *  @param server   The server on which the mode change operation will take place.
+ *
+ *  @return YES if the chmod command was successful, NO otherwise.
+ */
 - (BOOL) chmodFileNamed:(NSString*)fileName to:(int)mode atServer:(FMServer*)server;
-// -(BOOL) chmodFileNamed:to:atServer:
-// Changes the mode of a file on a server. Works only on UNIX servers.
-// Returns YES if the chmod command was successful.
+
+/**
+ *  Logs into the FTP server and logs out again. This can be used to check whether the credentials are correct before trying to do a file operation.
+ *
+ *  @param server The FMServer FTP object to log into.
+ *
+ *  @return YES if the login was successful, NO otherwise.
+ */
 - (BOOL) checkLogin:(FMServer*)server;
-// -(BOOL) checkLogin:
-// Logs into the FTP server and logs out again. This can be used to check whether the credentials are
-// correct before trying to do a file operation.
-// Returns YES if the login was successful.
+
+/**
+ *  Returns information about the current process. As the FTP methods hold the thread, you may want to call this method from a different thread that updates the UI.
+ *  See 'Process Info Dictionary Constants' above for information about the contents of the dictionary.
+ *
+ *  @return nil if no process is currently running or information could not be determined. This method only works when downloading or uploading a file.
+ */
 - (NSMutableDictionary *) progress;
-// -(NSMutableDictionary *) progress
-// Returns information about the current process. As the FTP methods hold the thread, you may
-// want to call this method from a different thread that updates the UI.
-// See 'Process Info Dictionary Constants' above for information about the contents of the
-// dictionary.
-// Returns nil if no process is currently running or information could not be determined. This
-// method only works when downloading or uploading a file.
+
+/**
+ *  Aborts the current process. As the FTP methods hold the thread, you may want to call this method from a different thread.
+ */
 - (void) abort;
-// -(void) abort
-// Aborts the current process. As the FTP methods hold the thread, you may want to call this
-// method from a different thread.
 
 
 
 
 
 //deprecated:
+/**
+ *  Deletes a file or directory from the specified FTP server. Uses absolute path on server as path parameter.
+ *  DEPRECATED: Use deleteFileNamed:fromServer: instead.
+ *
+ *  @param absolutePath The absolute path to the file which will be deleted on the server. The URL must end with a slash ("/").
+ *  @param server       The server from which the file will be deleted.
+ *
+ *  @return YES if the file was successfully deleted, NO otherwise.
+ */
 - (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server DEPRECATED_ATTRIBUTE;
-// ** THIS METHOD IS DEPRECATED! Use deleteFileNamed:fromServer: instead. **
-// -(BOOL) deleteFile:fromServer:
-// Deletes a file or directory from a server. Use absolute path on server as path parameter!
-// When trying to delete directories, make sure that the directory is empty.
-// The URL must end with slash (/)!
 
 @end
