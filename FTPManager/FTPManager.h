@@ -7,7 +7,7 @@
 //  http://nkreipke.de
 //
 
-//  Version 1.6.2
+//  Version 1.6.3
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -73,6 +73,10 @@
 //
 // ** 1.6.2 (2013-04-24) by nkreipke
 //     - fixed a bug that occured in iOS 6 (https://github.com/nkreipke/FTPManager/issues/5)
+//     - fixed garbage value bug
+//
+// ** 1.6.3 (2014-01-25) by nkreipke
+//     - fixed a memory leak
 //
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************

@@ -7,7 +7,7 @@
 //  http://nkreipke.de
 //
 
-//  Version 1.6.2
+//  Version 1.6.3
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -74,6 +74,9 @@
 // ** 1.6.2 (2013-04-24) by nkreipke
 //     - fixed a bug that occured in iOS 6 (https://github.com/nkreipke/FTPManager/issues/5)
 //     - fixed garbage value bug
+//
+// ** 1.6.3 (2014-01-25) by nkreipke
+//     - fixed a memory leak
 //
 
 #import "FTPManager.h"
@@ -186,7 +189,7 @@
     CFWriteStreamRef writeStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)finalURL);
     And(success, (writeStream != NULL));
     Check(success);
-    self.serverStream = (__bridge NSOutputStream*) writeStream;
+    self.serverStream = (__bridge_transfer NSOutputStream*) writeStream;
     
     And(success, [self.serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
     And(success, [self.serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
@@ -228,7 +231,7 @@
     CFWriteStreamRef writeStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)finalURL);
     And(success, (writeStream != NULL));
     Check(success);
-    self.serverStream = (__bridge NSOutputStream*) writeStream;
+    self.serverStream = (__bridge_transfer NSOutputStream*) writeStream;
     
     And(success, [self.serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
     And(success, [self.serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
@@ -263,7 +266,7 @@
     CFWriteStreamRef writeStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)finalURL);
     And(success, (writeStream != NULL));
     Check(success);
-    self.serverStream = (__bridge NSOutputStream*) writeStream;
+    self.serverStream = (__bridge_transfer NSOutputStream*) writeStream;
     
     And(success, [self.serverStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
     And(success, [self.serverStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
@@ -305,7 +308,7 @@
     CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)dest);
     And(success, (readStream != NULL));
     if (!success) return nil;
-    self.serverReadStream = (__bridge NSInputStream*) readStream;
+    self.serverReadStream = (__bridge_transfer NSInputStream*) readStream;
     
     And(success, [self.serverReadStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
     And(success, [self.serverReadStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
@@ -348,7 +351,7 @@
     CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL, (__bridge CFURLRef)[[server.destination ftpURLForPort:server.port] URLByAppendingPathComponent:fileName]);
     And(success, (readStream != NULL));
     Check(success);
-    self.serverReadStream = (__bridge NSInputStream*) readStream;
+    self.serverReadStream = (__bridge_transfer NSInputStream*) readStream;
     
     And(success, [self.serverReadStream setProperty:server.username forKey:(id)kCFStreamPropertyFTPUserName]);
     And(success, [self.serverReadStream setProperty:server.password forKey:(id)kCFStreamPropertyFTPPassword]);
