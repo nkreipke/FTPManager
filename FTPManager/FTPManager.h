@@ -7,7 +7,7 @@
 //  http://nkreipke.de
 //
 
-//  Version 1.6.3
+//  Version 1.6.4
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -77,6 +77,10 @@
 //
 // ** 1.6.3 (2014-01-25) by nkreipke
 //     - fixed a memory leak
+//
+// ** 1.6.4 (2014-06-05) by nkreipke
+//     - fixed crash that can occur when the run loop is released before completion
+//     - fixed race condition bug while aborting
 //
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************

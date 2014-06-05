@@ -7,7 +7,7 @@
 //  http://nkreipke.de
 //
 
-//  Version 1.6.3
+//  Version 1.6.4
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -78,12 +78,21 @@
 // ** 1.6.3 (2014-01-25) by nkreipke
 //     - fixed a memory leak
 //
+// ** 1.6.4 (2014-06-05) by nkreipke
+//     - fixed crash that can occur when the run loop is released before completion
+//     - fixed race condition bug while aborting
+//
 
 #import "FTPManager.h"
 
 #define And(val1, val2) { val1 = val1 && val2; }
 #define AndV(val1, val2, message) { And(val1, val2); if (!val2) NSLog(message); }
 #define Check(val1) { if (val1 == NO) return NO; }
+
+#define RetainRunLoop(...) \
+    ({__block __typeof__(__VA_ARGS__) result; \
+    dispatch_sync(dispatch_get_current_queue(), ^{ result = (__VA_ARGS__); }); \
+    result;})
 
 #pragma mark -
 
@@ -388,7 +397,7 @@
     if (!data) {
         return NO;
     }
-    return [self _uploadData:data withFileName:fileName toServer:server];
+    return RetainRunLoop([self _uploadData:data withFileName:fileName toServer:server]);
 }
 
 - (BOOL) uploadFile:(NSURL*)fileURL toServer:(FMServer*)server {
@@ -402,7 +411,7 @@
     if (![[NSFileManager defaultManager] fileExistsAtPath:fileURL.path isDirectory:&isDir] || isDir) {
         return NO;
     }
-    return [self _uploadFile:fileURL toServer:server];
+    return RetainRunLoop([self _uploadFile:fileURL toServer:server]);
 }
 - (BOOL) createNewFolder:(NSString*)folderName atServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -414,7 +423,7 @@
     if ([folderName isEqualToString:@""]) {
         return NO;
     }
-    return [self _createNewFolder:folderName atServer:server];
+    return RetainRunLoop([self _createNewFolder:folderName atServer:server]);
 }
 - (BOOL) deleteFileNamed:(NSString*)fileName fromServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -431,12 +440,12 @@
         //probably a directory (this will only succeed if the dir is empty)
         cmd = @"RMD";
     }
-    return [self _ftpActionForServer:server command:[NSString stringWithFormat:@"%@ %@",cmd,fileName]];
+    return RetainRunLoop([self _ftpActionForServer:server command:[NSString stringWithFormat:@"%@ %@",cmd,fileName]]);
 }
 - (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server {
     //this is deprecated.
     //the method may not behave like it used to.
-    return [self deleteFileNamed:absolutePath fromServer:server];
+    return RetainRunLoop([self deleteFileNamed:absolutePath fromServer:server]);
 }
 - (BOOL) chmodFileNamed:(NSString*)fileName to:(int)mode atServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -448,13 +457,13 @@
     if (mode < 0 || mode > 777) {
         return NO;
     }
-    return [self _ftpActionForServer:server command:[NSString stringWithFormat:@"SITE CHMOD %i %@",mode,fileName]];
+    return RetainRunLoop([self _ftpActionForServer:server command:[NSString stringWithFormat:@"SITE CHMOD %i %@",mode,fileName]]);
 }
 - (NSArray*) contentsOfServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
         return nil;
     }
-    return [self _contentsOfServer:server];
+    return RetainRunLoop([self _contentsOfServer:server]);
 }
 - (BOOL) downloadFile:(NSString*)fileName toDirectory:(NSURL*)directoryURL fromServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -472,13 +481,13 @@
     if (![[NSFileManager defaultManager] fileExistsAtPath:directoryURL.path]) {
         return NO;
     }
-    return [self _downloadFile:fileName toDirectory:directoryURL fromServer:server];
+    return RetainRunLoop([self _downloadFile:fileName toDirectory:directoryURL fromServer:server]);
 }
 - (BOOL) checkLogin:(FMServer*)server {
     if (![self _checkFMServer:server]) {
         return NO;
     }
-    return [self _ftpActionForServer:server command:nil];
+    return RetainRunLoop([self _ftpActionForServer:server command:nil]);
 }
 - (NSMutableDictionary *) progress {
     //this does only work with uploadFile and downloadFile.
@@ -529,13 +538,21 @@
     if (!currentStream) {
         return;
     }
-    [currentStream close];
+    
     [self _streamDidEndWithSuccess:YES failureReason:FMStreamFailureReasonAborted];
+    
+    [currentStream close];
 }
 
 #pragma mark - Stream
 
 - (void) _streamDidEndWithSuccess:(BOOL)success failureReason:(FMStreamFailureReason)failureReason {
+    if (!currentRunLoop)
+        return;
+    
+    CFRunLoopRef runloop = currentRunLoop;
+    currentRunLoop = NULL;
+    
     action = _FMCurrentActionNone;
     streamSuccess = success;
     if (!streamSuccess) {
@@ -573,7 +590,8 @@
         [self.fileWriter close];
         self.fileWriter = nil;
     }
-    CFRunLoopStop(currentRunLoop);
+    
+    CFRunLoopStop(runloop);
 }
 
 - (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
