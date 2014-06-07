@@ -78,9 +78,10 @@
 // ** 1.6.3 (2014-01-25) by nkreipke
 //     - fixed a memory leak
 //
-// ** 1.6.4 (2014-06-05) by nkreipke
-//     - fixed crash that can occur when the run loop is released before completion
+// ** 1.6.4 (2014-06-08) by nkreipke
+//     - fixed crash that can occur when scheduling the stream (thanks to Kevin Paunovic)
 //     - fixed race condition bug while aborting
+//     - a separate NSThread is now used instead of using whatever thread FTPManager was called on
 //
 
 #import "FTPManager.h"
@@ -245,8 +246,8 @@
     currentRunLoop = CFRunLoopGetCurrent();
     
     self.serverStream.delegate = self;
-    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [self.serverStream open];
+    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     
     CFRunLoopRun();
     
@@ -287,8 +288,8 @@
     currentRunLoop = CFRunLoopGetCurrent();
     
     self.serverStream.delegate = self;
-    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [self.serverStream open];
+    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     
     CFRunLoopRun();
     
@@ -322,8 +323,8 @@
     currentRunLoop = CFRunLoopGetCurrent();
     
     self.serverStream.delegate = self;
-    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [self.serverStream open];
+    [self.serverStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     
     CFRunLoopRun();
     
@@ -364,8 +365,8 @@
     currentRunLoop = CFRunLoopGetCurrent();
     
     self.serverReadStream.delegate = self;
-    [self.serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [self.serverReadStream open];
+    [self.serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     
     CFRunLoopRun();
     
@@ -408,8 +409,8 @@
     currentRunLoop = CFRunLoopGetCurrent();
     
     self.serverReadStream.delegate = self;
-    [self.serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [self.serverReadStream open];
+    [self.serverReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     
     CFRunLoopRun();
     
