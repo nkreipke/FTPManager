@@ -78,10 +78,12 @@
 // ** 1.6.3 (2014-01-25) by nkreipke
 //     - fixed a memory leak
 //
-// ** 1.6.4 (2014-06-08) by nkreipke
+// ** 1.6.4 (2014-06-13) by nkreipke
 //     - fixed crash that can occur when scheduling the stream (thanks to Kevin Paunovic)
 //     - fixed race condition bug while aborting
 //     - a separate NSThread is now used instead of using whatever thread FTPManager was called on
+//     - fixed bug that prevented subdirectories from being accessed when port was not 21
+//     - fixed bug that prevented subdirectories with names containing spaces from being accessed
 //
 
 #import "FTPManager.h"
@@ -343,6 +345,8 @@
     self.directoryListingData = [[NSMutableData alloc] init];
     
     NSURL* dest = [server.destination ftpURLForPort:server.port];
+    And(success, (dest != nil));
+    Check(success);
     
     if (![dest.absoluteString hasSuffix:@"/"]) {
         //if the url does not end with an '/' the method fails.
@@ -924,11 +928,17 @@
     return urlString;
 }
 -(NSURL*)ftpURLForPort:(int)port {
-    //return ftp:// version
-    if (port != 21) {
-        return [NSURL URLWithString:[NSString stringWithFormat:@"ftp://%@:%i",[self stringWithoutProtocol],port]];
-    }
-    return [NSURL URLWithString:[NSString stringWithFormat:@"ftp://%@",[self stringWithoutProtocol]]];
+    //returns the complete url including the directory
+    // -> ftp://test.com/test/test
+    NSString *host = port == 21 ? self.fmhost : [NSString stringWithFormat:@"%@:%i", self.fmhost, port];
+    NSString *hostWithProtocol = [NSString stringWithFormat:@"ftp://%@", host];
+    
+    NSString *url = hostWithProtocol;
+    NSString *fmdir = self.fmdir;
+    if (fmdir && fmdir.length > 0)
+        url = [NSString stringWithFormat:@"%@/%@", hostWithProtocol, [fmdir stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
+        
+    return [NSURL URLWithString:url];
 }
 -(NSString*)fmhost {
     //returns the host

@@ -78,9 +78,12 @@
 // ** 1.6.3 (2014-01-25) by nkreipke
 //     - fixed a memory leak
 //
-// ** 1.6.4 (2014-06-05) by nkreipke
-//     - fixed crash that can occur when the run loop is released before completion
+// ** 1.6.4 (2014-06-13) by nkreipke
+//     - fixed crash that can occur when scheduling the stream (thanks to Kevin Paunovic)
 //     - fixed race condition bug while aborting
+//     - a separate NSThread is now used instead of using whatever thread FTPManager was called on
+//     - fixed bug that prevented subdirectories from being accessed when port was not 21
+//     - fixed bug that prevented subdirectories with names containing spaces from being accessed
 //
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************
