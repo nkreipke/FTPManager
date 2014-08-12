@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.homepage = 'https://github.com/nkreipke/FTPManager'
   s.authors  = { 'nkreipke' => 'git@nkreipke.de', 'jweinert' => '' }
 
-  s.source   = { :git => 'https://github.com/nkreipke/FTPManager.git', :tag => '1.6.4' }
+  s.source   = { :git => 'https://github.com/nkreipke/FTPManager.git', :tag => '1.6.5' }
 
   s.source_files = 'FTPManager/FTPManager.{h,m}'
   s.requires_arc = true
