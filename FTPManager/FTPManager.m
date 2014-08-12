@@ -3,11 +3,11 @@
 //  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
-//  Copyright (c) 2012 nkreipke. All rights reserved.
+//  Copyright (c) 2014 nkreipke. All rights reserved.
 //  http://nkreipke.de
 //
 
-//  Version 1.6.4
+//  Version 1.6.5
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -84,6 +84,9 @@
 //     - a separate NSThread is now used instead of using whatever thread FTPManager was called on
 //     - fixed bug that prevented subdirectories from being accessed when port was not 21
 //     - fixed bug that prevented subdirectories with names containing spaces from being accessed
+//
+// ** 1.6.5 (2014-08-12) by nkreipke
+//     - kCFFTPResourceName entry is now converted into UTF8 encoding to cope with Non-ASCII characters
 //
 
 #import "FTPManager.h"
@@ -197,7 +200,16 @@
                                                          self.directoryListingData.length - offset, &thisEntry);
         if (bytesConsumed > 0) {
             if (thisEntry != NULL) {
-                [listingArray addObject:(__bridge NSDictionary*)thisEntry];
+                NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithDictionary:(__bridge NSDictionary *)thisEntry];
+                
+                // Converting kCFFTPResourceName entry to UTF8 to fix errors with Non-ASCII chars
+                NSString *nameEntry;
+                if ((nameEntry = entry[(id)kCFFTPResourceName])) {
+                    entry[(id)kCFFTPResourceName] = [[NSString alloc] initWithData:[nameEntry dataUsingEncoding:NSMacOSRomanStringEncoding allowLossyConversion:YES]
+                                                                          encoding:NSUTF8StringEncoding];
+                }
+                
+                [listingArray addObject:entry];
             }
             offset += bytesConsumed;
         }

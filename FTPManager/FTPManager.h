@@ -3,11 +3,11 @@
 //  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
-//  Copyright (c) 2012 nkreipke. All rights reserved.
+//  Copyright (c) 2014 nkreipke. All rights reserved.
 //  http://nkreipke.de
 //
 
-//  Version 1.6.4
+//  Version 1.6.5
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -84,6 +84,9 @@
 //     - a separate NSThread is now used instead of using whatever thread FTPManager was called on
 //     - fixed bug that prevented subdirectories from being accessed when port was not 21
 //     - fixed bug that prevented subdirectories with names containing spaces from being accessed
+//
+// ** 1.6.5 (2014-08-12) by nkreipke
+//     - kCFFTPResourceName entry is now converted into UTF8 encoding to cope with Non-ASCII characters
 //
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************

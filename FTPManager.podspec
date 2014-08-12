@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name     = 'FTPManager'
-  s.version  = '1.6.4'
+  s.version  = '1.6.5'
   s.license  = 'MIT'
   s.summary  = 'An Objective-C class for simple, synchronous ftp access.'
   s.homepage = 'https://github.com/nkreipke/FTPManager'
