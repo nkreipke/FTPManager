@@ -118,6 +118,9 @@
         case chmod:
             success = [ftpManager chmodFileNamed:self.chmodFileField.stringValue to:self.chmodModeField.intValue atServer:srv];
             break;
+        case rn:
+            success = [ftpManager renameFileNamed:self.renameFileField.stringValue to:self.renameToField.stringValue atServer:srv];
+            break;
         default:
             break;
     }
@@ -191,6 +194,14 @@
     action = newfolder;
     [self runAction];
 }
+- (IBAction)pushRenameAFile:(id)sender {
+    [NSApp beginSheet:self.renamePanel modalForWindow:self.window modalDelegate:self didEndSelector:@selector(didEndSheet:returnCode:contextInfo:) contextInfo:nil];
+}
+- (IBAction)confirmRenameAFile:(id)sender {
+    [NSApp endSheet:self.renamePanel];
+    action = rn;
+    [self runAction];
+}
 - (IBAction)pushDeleteAFile:(id)sender {
     [NSApp beginSheet:self.deletePanel modalForWindow:self.window modalDelegate:self didEndSelector:@selector(didEndSheet:returnCode:contextInfo:) contextInfo:nil];
 }
@@ -231,6 +242,9 @@
 }
 - (IBAction)dismissChmodPanel:(id)sender {
     [NSApp endSheet:self.chmodPanel];
+}
+- (IBAction)dismissRenamePanel:(id)sender {
+    [NSApp endSheet:self.renamePanel];
 }
 
 
