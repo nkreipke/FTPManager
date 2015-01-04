@@ -45,7 +45,7 @@
             [self.actionProgressBar setDoubleValue:[prog doubleValue]];
             NSNumber* bytesProcessed = [progress objectForKey:(id)kFMProcessInfoFileSizeProcessed];
             NSNumber* fileSize = [progress objectForKey:(id)kFMProcessInfoFileSize];
-            [self.actionProgressField setStringValue:[NSString stringWithFormat:@"%i bytes of %i bytes",[bytesProcessed intValue],[fileSize intValue]]];
+            [self.actionProgressField setStringValue:[NSString stringWithFormat:@"%@ bytes of %@ bytes",bytesProcessed,fileSize]];
         }
     }
 }
@@ -59,7 +59,7 @@
     NSNumber* type = [dict objectForKey:(id)kCFFTPResourceType];
     NSNumber* mode = [dict objectForKey:(id)kCFFTPResourceMode];
     NSString* isFolder = ([type intValue] == 4) ? @"(folder) " : @"";
-    return [NSString stringWithFormat:@"%@ %@--- size %i bytes - mode:%i - modDate: %@\n",name,isFolder,[size intValue],[mode intValue],[mod description]];
+    return [NSString stringWithFormat:@"%@ %@--- size %@ bytes - mode:%i - modDate: %@\n",name,isFolder,size,[mode intValue],[mod description]];
 }
 
 -(void)processSData:(NSArray*)data {
