@@ -3,11 +3,11 @@
 //  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
-//  Copyright (c) 2014 nkreipke. All rights reserved.
+//  Copyright (c) 2015 nkreipke. All rights reserved.
 //  http://nkreipke.de
 //
 
-//  Version 1.6.5
+//  Version 1.7
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -87,6 +87,13 @@
 //
 // ** 1.6.5 (2014-08-12) by nkreipke
 //     - kCFFTPResourceName entry is now converted into UTF8 encoding to cope with Non-ASCII characters
+//
+// ** 1.7 (2015-01-04) by nkreipke
+//     - fixed halting issue in FMThread
+//     - Methods added:
+//         - deleteFileNamed:isDirectory:fromServer:
+//         - renameFileNamed:to:atServer:
+//     - delegate property is now deprecated
 //
 
 // SCROLL DOWN TO SEE THE WELL COMMENTED PUBLIC METHODS. *****************
@@ -193,15 +200,12 @@ typedef enum {
     _FMCurrentActionNone
 } _FMCurrentAction;
 
-/* I do not recommend to use this delegate, because the methods will slow down
- * the process. On top of this they may have some threading issues that could
- * be pretty confusing. Use an NSTimer and [manager progress] instead. */
 @protocol FTPManagerDelegate <NSObject>
 @optional
-- (void)ftpManagerUploadProgressDidChange:(NSDictionary *)processInfo;
+- (void)ftpManagerUploadProgressDidChange:(NSDictionary *)processInfo DEPRECATED_ATTRIBUTE;
 // Returns information about the current upload.
 // See "Process Info Dictionary Constants" below for detailed info.
-- (void)ftpManagerDownloadProgressDidChange:(NSDictionary *)processInfo;
+- (void)ftpManagerDownloadProgressDidChange:(NSDictionary *)processInfo DEPRECATED_ATTRIBUTE;
 // Returns information about the current download.
 // See "Process Info Dictionary Constants" below for detailed info.
 @end
@@ -255,13 +259,10 @@ typedef enum {
 
 @property (strong) NSMutableData *directoryListingData;
 
-
-@property (assign) id<FTPManagerDelegate>delegate;
-
 #pragma mark - Public Methods
 
-// *** Information
-// These methods hold the current thread. You will get an answer with a success information.
+/* *** Information
+ * These methods hold the current thread. You will get an answer with a success information. */
 
 /**
  *  Uploads a file to a server. Existing remote files of the same name will be overwritten.
@@ -318,6 +319,19 @@ typedef enum {
 /**
  *  Delete a file from the specified FTP server and delete directories if they are empty.
  *
+ *  @param fileName    The file which will be deleted from the FTP server.
+ *  @param isDirectory Specifies whether the object to delete is a directory.
+ *  @param server      The FTP server from which the file or directory will be deleted.
+ *
+ *  @return YES if the file was successfully deleted from the server, NO otherwise.
+ */
+- (BOOL) deleteFileNamed:(NSString*)fileName isDirectory:(BOOL)isDirectory fromServer:(FMServer*)server;
+
+/**
+ *  Delete a file from the specified FTP server and delete directories if they are empty.
+ *  The method will try to determine automatically whether fileName points to a file
+ *  or a directory.
+ *
  *  @param fileName The file which will be deleted from the FTP server.
  *  @param server   The FTP server from which the file or directory will be deleted.
  *
@@ -335,6 +349,17 @@ typedef enum {
  *  @return YES if the chmod command was successful, NO otherwise.
  */
 - (BOOL) chmodFileNamed:(NSString*)fileName to:(int)mode atServer:(FMServer*)server;
+
+/**
+ *  Renames a file on a server.
+ *
+ *  @param fileName   The file to be renamed.
+ *  @param toFileName The desired file name.
+ *  @param server     The server on which the renaming operation will take place.
+ *
+ *  @return YES if the rename was successful, NO otherwise.
+ */
+- (BOOL) renameFileNamed:(NSString*)fileName to:(NSString*)toFileName atServer:(FMServer*)server;
 
 /**
  *  Logs into the FTP server and logs out again. This can be used to check whether the credentials are correct before trying to do a file operation.
@@ -373,5 +398,11 @@ typedef enum {
  *  @return YES if the file was successfully deleted, NO otherwise.
  */
 - (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server DEPRECATED_ATTRIBUTE;
+
+/**
+ *  Use this if you want to encounter a variety of threading issues.
+ *  I consider this deprecated in 1.7 or later.
+ */
+@property (assign) id<FTPManagerDelegate>delegate DEPRECATED_ATTRIBUTE;
 
 @end

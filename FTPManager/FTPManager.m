@@ -3,11 +3,11 @@
 //  FTPManager
 //
 //  Created by Nico Kreipke on 11.08.11.
-//  Copyright (c) 2014 nkreipke. All rights reserved.
+//  Copyright (c) 2015 nkreipke. All rights reserved.
 //  http://nkreipke.de
 //
 
-//  Version 1.6.5
+//  Version 1.7
 //  SEE LICENSE FILE FOR LICENSE INFORMATION
 
 // Information:
@@ -88,6 +88,13 @@
 // ** 1.6.5 (2014-08-12) by nkreipke
 //     - kCFFTPResourceName entry is now converted into UTF8 encoding to cope with Non-ASCII characters
 //
+// ** 1.7 (2015-01-04) by nkreipke
+//     - fixed halting issue in FMThread
+//     - Methods added:
+//         - deleteFileNamed:isDirectory:fromServer:
+//         - renameFileNamed:to:atServer:
+//     - delegate property is now deprecated
+//
 
 #import "FTPManager.h"
 
@@ -105,6 +112,7 @@
 @interface FMThread : NSObject {
 @private
     NSCondition *waitCondition;
+    BOOL workDone;
 }
 @property (copy) void (^block)(void);
 + (void)runInSeparateThread:(void (^)(void))block;
@@ -116,13 +124,17 @@
 {
     FMThread *thread = [[FMThread alloc] init];
     thread.block = block;
+    thread->workDone = NO;
     thread->waitCondition = [[NSCondition alloc] init];
     
     [thread->waitCondition lock];
     
     NSThread *t = [[NSThread alloc] initWithTarget:thread selector:@selector(threadMain) object:nil];
     [t start];
-    [thread->waitCondition wait];
+    
+    while (!thread->workDone)
+        [thread->waitCondition wait];
+    
     [thread->waitCondition unlock];
 }
 
@@ -131,7 +143,10 @@
     @autoreleasepool {
         self.block();
         
+        [waitCondition lock];
+        workDone = YES;
         [waitCondition broadcast];
+        [waitCondition unlock];
     }
 }
 
@@ -477,22 +492,19 @@
     }
     return RunInSeparateThread([self _createNewFolder:folderName atServer:server]);
 }
-- (BOOL) deleteFileNamed:(NSString*)fileName fromServer:(FMServer*)server {
-    if (![self _checkFMServer:server]) {
+- (BOOL) deleteFileNamed:(NSString*)fileName isDirectory:(BOOL)isDirectory fromServer:(FMServer*)server {
+    if (![self _checkFMServer:server] ||
+            !fileName)
         return NO;
-    }
-    if (!fileName) {
-        return NO;
-    }
-    NSString* cmd;
-    if ([fileName rangeOfString:@"."].location != NSNotFound) {
-        //probably a file
-        cmd = @"DELE";
-    } else {
-        //probably a directory (this will only succeed if the dir is empty)
-        cmd = @"RMD";
-    }
+    
+    NSString* cmd = isDirectory ? @"RMD" : @"DELE";
     return RunInSeparateThread([self _ftpActionForServer:server command:[NSString stringWithFormat:@"%@ %@",cmd,fileName]]);
+}
+- (BOOL) deleteFileNamed:(NSString*)fileName fromServer:(FMServer*)server {
+    // stupid check for a file extension:
+    BOOL isDirectory = [fileName rangeOfString:@"."].location == NSNotFound;
+    
+    return [self deleteFileNamed:fileName isDirectory:isDirectory fromServer:server];
 }
 - (BOOL) deleteFile:(NSString *)absolutePath fromServer:(FMServer *)server {
     //this is deprecated.
@@ -510,6 +522,14 @@
         return NO;
     }
     return RunInSeparateThread([self _ftpActionForServer:server command:[NSString stringWithFormat:@"SITE CHMOD %i %@",mode,fileName]]);
+}
+- (BOOL) renameFileNamed:(NSString*)fileName to:(NSString*)toFileName atServer:(FMServer*)server {
+    if (![self _checkFMServer:server] ||
+            !fileName ||
+            !toFileName)
+        return NO;
+    
+    return RunInSeparateThread([self _ftpActionForServer:server command:[NSString stringWithFormat:@"RNFR %@\r\nRNTO %@",fileName,toFileName]]);
 }
 - (NSArray*) contentsOfServer:(FMServer*)server {
     if (![self _checkFMServer:server]) {
@@ -652,9 +672,12 @@
             if (action == _FMCurrentActionDownloadFile) {
                 fileSize = [[theStream propertyForKey:(id)kCFStreamPropertyFTPResourceSize] longLongValue];
                 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ftpManagerDownloadProgressDidChange:)]) {
                     [self.delegate ftpManagerDownloadProgressDidChange:[self progress]];
                 }
+#pragma clang diagnostic pop
             }
             break;
         case NSStreamEventHasBytesAvailable:
@@ -686,9 +709,13 @@
                         fileSizeProcessed += bytesRead;
                         bytesProcessed = bytesRead;
                         
+                        
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                         if (self.delegate && [self.delegate respondsToSelector:@selector(ftpManagerDownloadProgressDidChange:)]) {
                             [self.delegate ftpManagerDownloadProgressDidChange:[self progress]];
                         }
+#pragma clang diagnostic pop
                     }
                 }
                 if (self.bufferOffset != self.bufferLimit) {
@@ -737,9 +764,13 @@
                         fileSizeProcessed += bytesWritten;
                         bytesProcessed = bytesWritten;
                         
+                        
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                         if (self.delegate && [self.delegate respondsToSelector:@selector(ftpManagerUploadProgressDidChange:)]) {
                             [self.delegate ftpManagerUploadProgressDidChange:[self progress]];
                         }
+#pragma clang diagnostic pop
                     }
                 }
             } else {
